@@ -64,7 +64,7 @@ input[type=file]{color:var(--muted)}
     <h2>5. รหัสนักเรียน</h2>
     <div class="row"><button class="btn" id="print">พิมพ์บัตรรหัส</button><button class="btn" id="csv">ดาวน์โหลด CSV</button><button class="btn" id="reload">โหลดรายชื่อจากเว็บ</button></div>
     <div class="small muted">เก็บ CSV ไว้เองเท่านั้น ห้ามอัปขึ้น GitHub ถ้านักเรียนทำรหัสหาย กด "รหัสใหม่" รหัสเก่าจะใช้ไม่ได้ทันที</div>
-    <div style="overflow:auto"><table id="tbl"><thead><tr><th>เลขที่</th><th>ชื่อเล่น</th><th>รหัส</th><th>Lv</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div style="overflow:auto"><table id="tbl"><thead><tr><th>ห้อง</th><th>เลขที่</th><th>ชื่อเล่น</th><th>รหัส</th><th>Lv</th><th></th></tr></thead><tbody></tbody></table></div>
   </div>
 
   <div class="card" id="t6" hidden>
@@ -181,7 +181,7 @@ function drawTable() {
   const tb = document.querySelector('#tbl tbody'); tb.textContent = '';
   for (const r of roster) {
     const tr = document.createElement('tr');
-    for (const [v, cls] of [[r.data.no, ''], [r.data.nick, ''], [fmt(r.code), 'code'], [r.data.level, '']]) { const td = document.createElement('td'); td.textContent = v; if (cls) td.className = cls; tr.append(td); }
+    for (const [v, cls] of [[r.data.cn || '', ''], [r.data.no, ''], [r.data.nick, ''], [fmt(r.code), 'code'], [r.data.level, '']]) { const td = document.createElement('td'); td.textContent = v; if (cls) td.className = cls; tr.append(td); }
     const td = document.createElement('td'), b = document.createElement('button'); b.className = 'btn'; b.textContent = 'รหัสใหม่';
     b.onclick = async () => {
       if (!confirm('ออกรหัสใหม่ให้ ' + r.data.nick + ' ? รหัสเก่าจะใช้ไม่ได้ทันที')) return;
@@ -198,9 +198,11 @@ $('imp').onchange = async (e) => {
   const f = e.target.files[0]; pending = null; $('imp-go').disabled = true; if (!f) return;
   try {
     const j = JSON.parse(await f.text());
-    if (j.app !== 'QuestClass Home export' || !Array.isArray(j.students) || !j.students.length) throw new Error('ไม่ใช่ไฟล์ส่งออกไปบ้านนักเรียน');
+    if (j.app !== 'QuestClass Home export') throw new Error('ไม่ใช่ไฟล์ส่งออกไปบ้านนักเรียน');
     if (JSON.stringify(j).match(/"name"\s*:/)) throw new Error('ไฟล์มีฟิลด์ name (ชื่อจริง) ไม่รับไฟล์นี้');
-    pending = j; $('imp-sum').textContent = 'ห้อง ' + j.className + ' • ' + j.students.length + ' คน • ข้อมูล ณ ' + j.asOf; $('imp-go').disabled = false;
+    const cls = Array.isArray(j.classes) ? j.classes : [j];   // v2 = many classes, v1 = one class
+    if (!cls.length || cls.some((c) => !Array.isArray(c.students) || !c.students.length || !c.classId)) throw new Error('รูปแบบไฟล์ไม่ถูกต้อง');
+    pending = cls; $('imp-sum').textContent = cls.map((c) => c.className + ' (' + c.students.length + ' คน)').join(' • ') + ' • ข้อมูล ณ ' + cls[0].asOf; $('imp-go').disabled = false;
   } catch (err) { $('imp-sum').textContent = 'อ่านไฟล์ไม่ได้: ' + err.message; }
 };
 $('imp-go').onclick = async () => {
@@ -208,10 +210,10 @@ $('imp-go').onclick = async () => {
   try {
     await loadRoster();
     const bySid = new Map(roster.map((r) => [r.data.sid, r])), taken = new Set(roster.map((r) => r.code)), wk = weekKey(); let added = 0, updated = 0;
-    for (const s of pending.students) {
+    for (const c of pending) for (const s of c.students) {
       const old = bySid.get(s.sid); const code = old ? old.code : newCode(taken); taken.add(code);
       const oldWk = old && old.data.wk && old.data.wk.key === wk ? old.data.wk : { key: wk, used: 0, cap: 15, won: [] };
-      await fs.setDoc(fs.doc(db, 'homes', code), { v: 1, sid: s.sid, classId: pending.classId, no: s.no | 0, nick: String(s.nick).slice(0, 40), race: s.race, element: s.element, level: s.level | 0, exp: Math.round((+s.exp || 0) * 10) / 10, curAt: s.curAt | 0, nextAt: s.nextAt | 0, tasks: s.tasks || [], att: s.att, wk: oldWk, dr: pending.dungeonRewards || null, log: old && old.data.log ? old.data.log : [], updatedAt: fs.serverTimestamp() });
+      await fs.setDoc(fs.doc(db, 'homes', code), { v: 1, sid: s.sid, classId: c.classId, cn: String(c.className || '').slice(0, 60), no: s.no | 0, nick: String(s.nick).slice(0, 40), race: s.race, element: s.element, level: s.level | 0, exp: Math.round((+s.exp || 0) * 10) / 10, curAt: s.curAt | 0, nextAt: s.nextAt | 0, tasks: s.tasks || [], att: s.att, wk: oldWk, dr: c.dungeonRewards || null, log: old && old.data.log ? old.data.log : [], updatedAt: fs.serverTimestamp() });
       old ? updated++ : added++;
     }
     $('imp-sum').textContent = 'เสร็จแล้ว: คนใหม่ ' + added + ' • อัปเดต ' + updated; await loadRoster();
@@ -220,7 +222,7 @@ $('imp-go').onclick = async () => {
 };
 $('reload').onclick = loadRoster;
 $('csv').onclick = () => {
-  const rows = [['เลขที่', 'ชื่อเล่น', 'รหัส', 'ห้อง']].concat(roster.map((r) => [r.data.no, r.data.nick, fmt(r.code), r.data.classId]));
+  const rows = [['ห้อง', 'เลขที่', 'ชื่อเล่น', 'รหัส']].concat(roster.map((r) => [r.data.cn || r.data.classId, r.data.no, r.data.nick, fmt(r.code)]));
   const csv = '\ufeff' + rows.map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'codes.csv'; a.click();
 };
@@ -229,7 +231,7 @@ $('print').onclick = () => {
   const box = $('cards'); box.textContent = '';
   for (const r of roster) {
     const d = document.createElement('div'); d.className = 'pc';
-    const b = document.createElement('b'); b.textContent = '#' + r.data.no + ' ' + r.data.nick;
+    const b = document.createElement('b'); b.textContent = (r.data.cn ? r.data.cn + ' • ' : '') + '#' + r.data.no + ' ' + r.data.nick;
     const c = document.createElement('div'); c.className = 'c'; c.textContent = fmt(r.code);
     const s = document.createElement('small'); s.textContent = 'เข้าบ้านนักผจญภัยที่ ' + url + ' แล้วใส่รหัสนี้ • รหัสเหมือนรหัสผ่าน อย่าบอกเพื่อน • ทำหายให้แจ้งครู';
     d.append(b, c, s); box.append(d);
