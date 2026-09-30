@@ -148,7 +148,7 @@ function demoDoc() {
   const d = new Date(); const day = (n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
   return { v: 1, nick: 'น้องตัวอย่าง', race: 'celestial', element: 'light', level: 72, exp: 690, curAt: 644, nextAt: 703,
     tasks: [{ t: 'แบบฝึกหัด บทที่ 3 (จำนวนจริง)', d: day(2) }, { t: 'ใบงาน ทศนิยมและเศษส่วน', d: day(-1) }, { t: 'โครงงานคณิตกลุ่ม', d: day(9) }],
-    att: { present: 41, late: 3, absent: 2, total: 46, last: [['', 'P'], ['', 'P'], ['', 'L'], ['', 'P'], ['', 'P'], ['', 'A'], ['', 'P'], ['', 'P'], ['', 'P'], ['', 'P']] },
+    att: { present: 41, late: 3, absent: 2, total: 46, last: 'PPLPPAPPPP'.split('').map((c) => ({ d: '', s: c })) },
     wk: { key: '2026-W40', used: 6, cap: 15 }, updatedAt: Date.now() };
 }
 async function fetchHome(code) {
@@ -222,7 +222,7 @@ function render(d) {
   const a = d.att || {}; const sum = $('att-sum'); sum.textContent = '';
   for (const [k, lab] of [['present', 'มา'], ['late', 'สาย'], ['absent', 'ขาด'], ['total', 'ทั้งหมด']]) { const dv = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'); b.className = 'num'; b.textContent = a[k] | 0; sp.textContent = lab; dv.append(b, sp); sum.append(dv); }
   const dots = $('att-dots'); dots.textContent = '';
-  for (const r of (a.last || []).slice(-30)) { const i = document.createElement('i'); i.className = 'dot ' + r[1]; i.title = (r[0] ? thDate(r[0]) + ' ' : '') + ({ P: 'มา', L: 'สาย', A: 'ขาด' }[r[1]] || ''); dots.append(i); }
+  for (const r of (a.last || []).slice(-30)) { const st = r.s, dd = r.d; const i = document.createElement('i'); i.className = 'dot ' + st; i.title = (dd ? thDate(dd) + ' ' : '') + ({ P: 'มา', L: 'สาย', A: 'ขาด' }[st] || ''); dots.append(i); }
 
   const wk = d.wk || {}; $('wk-line').textContent = wk.cap ? 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: ' + (wk.used | 0) + ' / ' + wk.cap : 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: -';
   const u = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : d.updatedAt;
