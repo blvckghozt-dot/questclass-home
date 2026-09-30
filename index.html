@@ -75,6 +75,32 @@ h1,h2,h3{font-family:var(--f-display);margin:0;font-weight:600;text-wrap:balance
 .soon-card{display:flex;gap:12px;align-items:center}
 .soon-card .ic{font-size:2rem}
 .foot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+/* dungeon */
+.dg-head{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+.dg-log{display:flex;flex-direction:column;gap:2px;margin-bottom:8px;padding:6px 8px;background:var(--panel2);border-radius:6px}
+.dg-log .ok{color:var(--good)}
+.dg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dg-card{appearance:none;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;padding:8px 4px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;cursor:pointer;min-height:44px;font-size:.82rem;line-height:1.25}
+.dg-card:disabled{opacity:.6;cursor:default}
+.dg-card .st{font-weight:600;color:var(--gold2)}.dg-card .st.won{color:var(--good)}.dg-card .st.wait{color:var(--warn)}
+.dg-sp{width:56px;height:56px;image-rendering:pixelated}
+.dg-ov{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:max(12px,env(safe-area-inset-top)) 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.dg-ov>*{max-width:420px;width:100%}
+.dg-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.dg-hero{width:120px!important;height:120px;image-rendering:pixelated;align-self:center}
+.dg-prog{text-align:center;font:600 .9rem var(--f-data);color:var(--muted)}
+.dg-q{text-align:center;font:700 1.9rem var(--f-data);overflow-wrap:anywhere;padding:6px 0}
+.dg-ans{text-align:center;font:700 2rem var(--f-data);min-height:3rem;border-bottom:2px solid var(--gold);color:var(--gold2)}
+.dg-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.dg-pad .key{appearance:none;font:700 1.5rem var(--f-data);min-height:56px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
+.dg-pad .key:active{background:#232c4a}
+.dg-pad .okk{background:linear-gradient(180deg,#f3cd75,#d9a53d);color:var(--ink);font-size:1.05rem;font-family:var(--f-body)}
+.dg-score{text-align:center;font:700 3rem var(--f-data);color:var(--gold2)}
+.dg-rev{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.dg-rev li{display:flex;flex-direction:column;background:var(--panel2);border-radius:6px;padding:6px 10px}
+.dg-btns{display:flex;gap:8px;justify-content:center}
+.ok{color:var(--good)}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
 </head>
@@ -119,8 +145,7 @@ h1,h2,h3{font-family:var(--f-display);margin:0;font-weight:600;text-wrap:balance
 
   <div class="card sec">
     <h3>ดันเจี้ยนที่บ้าน</h3>
-    <div class="soon-card"><div class="ic" aria-hidden="true">⚔</div>
-      <div><div id="wk-line" class="small"></div><div class="tiny muted">เปิดให้เล่นเร็ว ๆ นี้ ตอบถูกครบ 10 ข้อติดกันจึงจะชนะมอนสเตอร์</div></div></div>
+    <div id="dg"></div>
   </div>
 
   <div class="foot"><button id="refresh" class="btn sm" type="button">รีเฟรชข้อมูล</button></div>
@@ -132,6 +157,7 @@ h1,h2,h3{font-family:var(--f-display);margin:0;font-weight:600;text-wrap:balance
 <script src="realart-core.js"></script>
 <script type="module">
 import { firebaseConfig, SDK } from './firebase-config.js';
+import { initDungeon } from './dungeon.js';
 
 const $ = (id) => document.getElementById(id);
 const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -144,6 +170,7 @@ async function initDb() {
   const [{ initializeApp }, m] = await Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]);
   db = m.getFirestore(initializeApp(firebaseConfig)); fsm = m;
 }
+async function getDb() { await initDb(); return { db, fs: fsm }; }
 function demoDoc() {
   const d = new Date(); const day = (n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
   return { v: 1, nick: 'น้องตัวอย่าง', race: 'celestial', element: 'light', level: 72, exp: 690, curAt: 644, nextAt: 703,
@@ -224,7 +251,7 @@ function render(d) {
   const dots = $('att-dots'); dots.textContent = '';
   for (const r of (a.last || []).slice(-30)) { const st = r.s, dd = r.d; const i = document.createElement('i'); i.className = 'dot ' + st; i.title = (dd ? thDate(dd) + ' ' : '') + ({ P: 'มา', L: 'สาย', A: 'ขาด' }[st] || ''); dots.append(i); }
 
-  const wk = d.wk || {}; $('wk-line').textContent = wk.cap ? 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: ' + (wk.used | 0) + ' / ' + wk.cap : 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: -';
+  try { initDungeon($('dg'), { code: cur || 'DEMO', doc: d, demo: cur === 'DEMO', getDb }); } catch (e) { console.error(e); }
   const u = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : d.updatedAt;
   $('updated').textContent = u ? 'ข้อมูลอัปเดตโดยครูเมื่อ ' + new Date(u).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
 }

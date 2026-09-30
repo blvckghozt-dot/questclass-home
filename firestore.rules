@@ -21,7 +21,9 @@ service cloud.firestore {
 
       // A dungeon round submitted from home: create-only, exact shape, no edits, no reads.
       match /runs/{runId} {
-        allow read, update, delete: if isTeacher();
+        // A student may fetch one round by exact id (to find the next free attempt number and see its result). Never list.
+        allow get: if validCode(code) || isTeacher();
+        allow list, update, delete: if isTeacher();
         allow create: if isTeacher() || (
           validCode(code)
           && exists(/databases/$(database)/documents/homes/$(code))

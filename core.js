@@ -599,8 +599,36 @@ var QC = (function () {
       att.last = att.last.slice(-30);
       return { sid: s.id, no: s.no, nick: nick.slice(0, 40), race: s.race || 'human', element: s.element || 'fire', level: pr.level, exp: exp, curAt: pr.cur, nextAt: pr.next == null ? 0 : pr.next, tasks: tasks.slice(0, 40), att: att };
     });
-    return { file: { app: 'QuestClass Home export', v: 1, exportedAt: new Date().toISOString(), classId: o.classId, className: String(o.className || '').slice(0, 60), asOf: today, students: students }, missingNick: missing };
+    return { file: { app: 'QuestClass Home export', v: 1, dungeonRewards: o.dungeonRewards || null, exportedAt: new Date().toISOString(), classId: o.classId, className: String(o.className || '').slice(0, 60), asOf: today, students: students }, missingNick: missing };
   }
+
+
+  // ---------- Home dungeon (student rounds; deterministic so the teacher can re-check them) ----------
+  var HOME_MONSTERS = [
+    ['green_slime', 'natural-add', 'easy', 'สไลม์เขียว'], ['acid_red_slime', 'natural-add', 'medium', 'สไลม์กรดแดง'], ['king_iron_slime', 'natural-add', 'hard', 'ราชาสไลม์เหล็ก'],
+    ['forest_wolf', 'natural-mul', 'easy', 'หมาป่าพงไพร'], ['dire_shadow_wolf', 'natural-mul', 'medium', 'หมาป่าเงาทมิฬ'], ['hellhound_behemoth', 'natural-mul', 'hard', 'สุนัขนรกสองหัว'],
+    ['skeletal_soldier', 'integer-mixed', 'easy', 'ทหารโครงกระดูก'], ['armored_skeleton_berserker', 'integer-mixed', 'medium', 'โครงกระดูกคลั่งเกราะ'], ['lich_necromancer', 'integer-mixed', 'hard', 'ลิชจอมเวทมรณะ'],
+    ['stone_golem', 'real-mixed', 'easy', 'โกเลมศิลา'], ['rune_crystal_golem', 'real-mixed', 'medium', 'โกเลมผลึกรูน'], ['ancient_titan_golem', 'real-mixed', 'hard', 'ไททันโกเลมโบราณ'],
+    ['lesser_demon_imp', 'natural-3', 'easy', 'อิมป์ปีศาจน้อย'], ['abyssal_demon_warrior', 'natural-3', 'medium', 'นักรบปีศาจอเวจี'], ['demon_commander_archon', 'natural-3', 'hard', 'อาร์คอนแม่ทัพปีศาจ'],
+    ['wyvern_drake', 'integer-3', 'easy', 'ไวเวิร์น'], ['ancient_red_dragon', 'integer-3', 'medium', 'มังกรแดงโบราณ'], ['aurelius_void_dragon', 'integer-3', 'hard', 'ออเรลิอุส มังกรสุญญตา']
+  ].map(function (a) { return { id: a[0], mode: a[1], diff: a[2], th: a[3] }; });
+  var homeMonsterById = {}; HOME_MONSTERS.forEach(function (m) { homeMonsterById[m.id] = m; });
+  function fnv32(str) { var h = 0x811c9dc5; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h >>> 0; }
+  function homeSeed(code, monsterId, week, attempt) { return fnv32(String(code).toUpperCase() + '|' + monsterId + '|' + week + '|' + attempt); }
+  function homeWeekOf(ms) { return isoWeekKey(bangkokDate(new Date(ms))); }
+  function homeQuestions(monsterId, seed) {
+    var m = homeMonsterById[monsterId]; if (!m) return null;
+    var rng = mulberry32(seed >>> 0), qs = [];
+    for (var i = 0; i < 10; i++) qs.push(generateQuestion(m.mode, m.diff, rng));
+    return qs;
+  }
+  function parseAnswer(s) { var t = String(s == null ? '' : s).replace(/[\u2212\u2013\u2014]/g, '-').replace(/,/g, '.').replace(/\s+/g, ''); if (!/^-?\d+(\.\d+)?$/.test(t)) return NaN; return Number(t); }
+  function homeCheck(qs, answers) {
+    var ok = [], right = 0;
+    for (var i = 0; i < 10; i++) { var v = parseAnswer(answers && answers[i]); var good = qs && qs[i] && isFinite(v) && Math.abs(v - qs[i].answerValue) < 1e-9; ok.push(!!good); if (good) right++; }
+    return { ok: ok, right: right, win: right === 10 };
+  }
+  function homeReward(rewards, monsterId) { var m = homeMonsterById[monsterId]; if (!m) return 0; var r = rewards && rewards[m.mode] && rewards[m.mode][m.diff]; if (typeof r !== 'number') r = defaultSettings().dungeonRewards[m.mode][m.diff]; return r; }
 
   // ---------- Dates (Asia/Bangkok) ----------
   function bangkokDate(d) {
@@ -681,7 +709,7 @@ var QC = (function () {
     generateQuestion: generateQuestion, diffIndex: diffIndex, fmtNum: fmtNum,
     bracketInfo: bracketInfo, buildBracket: buildBracket, syncBracket: syncBracket, setMatchWinner: setMatchWinner, readyMatches: readyMatches, findMatch: findMatch,
     shuffle: shuffle, bagNext: bagNext, makeGroups: makeGroups, makeBalancedGroups: makeBalancedGroups, groupRepeatPairs: groupRepeatPairs,
-    dailyBoss: dailyBoss, buildHomeExport: buildHomeExport, examBoss: examBoss, effectiveScore: effectiveScore, examPassed: examPassed,
+    dailyBoss: dailyBoss, buildHomeExport: buildHomeExport, HOME_MONSTERS: HOME_MONSTERS, homeMonsterById: homeMonsterById, homeSeed: homeSeed, homeWeekOf: homeWeekOf, homeQuestions: homeQuestions, homeCheck: homeCheck, homeReward: homeReward, parseAnswer: parseAnswer, examBoss: examBoss, effectiveScore: effectiveScore, examPassed: examPassed,
     bangkokDate: bangkokDate, daysInMonth: daysInMonth, isoWeekKey: isoWeekKey, parseRosterLines: parseRosterLines,
     defaultSettings: defaultSettings, sanitizeSettings: sanitizeSettings, clamp: clamp, mulberry32: mulberry32
   };

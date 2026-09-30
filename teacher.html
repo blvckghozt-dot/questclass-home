@@ -67,9 +67,19 @@ input[type=file]{color:var(--muted)}
     <div style="overflow:auto"><table id="tbl"><thead><tr><th>เลขที่</th><th>ชื่อเล่น</th><th>รหัส</th><th>Lv</th><th></th></tr></thead><tbody></tbody></table></div>
   </div>
 
+  <div class="card" id="t6" hidden>
+    <h2>6. ตรวจดันเจี้ยนที่บ้าน</h2>
+    <div class="small muted">กดตรวจ ระบบจะสร้างโจทย์ของแต่ละรอบใหม่จากเลขสุ่ม (seed) เทียบกับคำตอบที่ส่งมา ให้ EXP เฉพาะรอบที่ตอบถูกครบ 10 ข้อ ตัวละครละ 1 ครั้ง/สัปดาห์ และไม่เกินเพดาน</div>
+    <div class="row"><label class="small">เพดาน EXP/สัปดาห์ <input id="cap" type="number" min="0" max="100" value="15" style="width:70px;background:#0a0f1e;color:inherit;border:1px solid var(--line2);border-radius:6px;padding:6px"></label>
+      <button class="btn gold" id="review">ตรวจรอบที่ส่งมา</button><button class="btn" id="dl-res" disabled>ดาวน์โหลดผลไปแอปหลัก</button></div>
+    <div id="rv-sum" class="small"></div>
+    <div style="overflow:auto"><table id="rv-tbl" hidden><thead><tr><th>ชื่อเล่น</th><th>มอนสเตอร์</th><th>ถูก</th><th>ผล</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
 </div>
 <div id="cards"></div>
 
+<script src="core.js"></script>
 <script type="module">
 import { firebaseConfig, TEACHER_EMAIL, SDK } from './firebase-config.js';
 const $ = (id) => document.getElementById(id);
@@ -132,7 +142,8 @@ $('selftest').onclick = async () => {
     await t('ส่งผลรอบเล่นที่คำตอบไม่ครบ 10 ข้อ', false, () => fs.setDoc(R(TEST, 'slime_easy-3'), { ...goodRun, attempt: 3, answers: [1, 2] }));
     await t('ส่งผลรอบเล่นที่เวลา at ปลอม', false, () => fs.setDoc(R(TEST, 'slime_easy-4'), { ...goodRun, attempt: 4, at: new Date(2020, 1, 1) }));
     await t('ส่งผลรอบเล่นซ้ำ id เดิม (แก้ทับ)', false, () => fs.setDoc(R(TEST, 'slime_easy-1'), goodRun));
-    await t('อ่านผลรอบเล่น', false, () => fs.getDoc(R(TEST, 'slime_easy-1')));
+    await t('อ่านผลรอบเล่นที่รู้ id (get)', true, () => fs.getDoc(R(TEST, 'slime_easy-1')));
+    await t('ดึงรายการรอบเล่นทั้งหมด (list)', false, () => fs.getDocs(fs.collection(anonDb, 'homes', TEST, 'runs')));
     await t('ส่งผลรอบเล่นใต้รหัสที่ไม่มีบ้าน', false, () => fs.setDoc(R('ZZZZ9999', 'slime_easy-1'), goodRun));
     log('\nสรุป: ผ่าน ' + n + ' ข้อ, ไม่ผ่าน ' + f + ' ข้อ', f ? 'fail' : 'pass');
     if (f) log('ถ้ามี FAIL: ตรวจว่าวางกฎ firestore.rules ครบและกด Publish แล้ว', 'fail');
@@ -166,7 +177,7 @@ async function loadRoster() {
   drawTable();
 }
 function drawTable() {
-  $('t5').hidden = !roster.length;
+  $('t5').hidden = !roster.length; $('t6').hidden = !roster.length;
   const tb = document.querySelector('#tbl tbody'); tb.textContent = '';
   for (const r of roster) {
     const tr = document.createElement('tr');
@@ -200,7 +211,7 @@ $('imp-go').onclick = async () => {
     for (const s of pending.students) {
       const old = bySid.get(s.sid); const code = old ? old.code : newCode(taken); taken.add(code);
       const oldWk = old && old.data.wk && old.data.wk.key === wk ? old.data.wk : { key: wk, used: 0, cap: 15, won: [] };
-      await fs.setDoc(fs.doc(db, 'homes', code), { v: 1, sid: s.sid, classId: pending.classId, no: s.no | 0, nick: String(s.nick).slice(0, 40), race: s.race, element: s.element, level: s.level | 0, exp: s.exp | 0, curAt: s.curAt | 0, nextAt: s.nextAt | 0, tasks: s.tasks || [], att: s.att, wk: oldWk, updatedAt: fs.serverTimestamp() });
+      await fs.setDoc(fs.doc(db, 'homes', code), { v: 1, sid: s.sid, classId: pending.classId, no: s.no | 0, nick: String(s.nick).slice(0, 40), race: s.race, element: s.element, level: s.level | 0, exp: s.exp | 0, curAt: s.curAt | 0, nextAt: s.nextAt | 0, tasks: s.tasks || [], att: s.att, wk: oldWk, dr: pending.dungeonRewards || null, log: old && old.data.log ? old.data.log : [], updatedAt: fs.serverTimestamp() });
       old ? updated++ : added++;
     }
     $('imp-sum').textContent = 'เสร็จแล้ว: คนใหม่ ' + added + ' • อัปเดต ' + updated; await loadRoster();
@@ -224,6 +235,61 @@ $('print').onclick = () => {
     d.append(b, c, s); box.append(d);
   }
   window.print();
+};
+
+// ---------- review home dungeon rounds ----------
+let lastResults = [];
+$('cap').value = (() => { try { return localStorage.getItem('qc.cap') || '15'; } catch (e) { return '15'; } })();
+$('review').onclick = async () => {
+  $('review').disabled = true; $('rv-sum').textContent = 'กำลังตรวจ…';
+  try {
+    const cap = Math.max(0, Math.min(100, +$('cap').value || 0)); try { localStorage.setItem('qc.cap', String(cap)); } catch (e) { }
+    await loadRoster();
+    const tb = document.querySelector('#rv-tbl tbody'); tb.textContent = ''; lastResults = [];
+    const nowWeek = QC.homeWeekOf(Date.now()); let judged = 0, wins = 0, granted = 0;
+    for (const r of roster) {
+      const qs = await fs.getDocs(fs.collection(db, 'homes', r.code, 'runs'));
+      const runs = qs.docs.map((d) => ({ ref: d.ref, id: d.id, d: d.data() })).filter((x) => x.d.at && x.d.at.toMillis).sort((a, b) => a.d.at.toMillis() - b.d.at.toMillis());
+      const weeks = {}; const W = (k) => (weeks[k] = weeks[k] || { used: 0, won: new Set() });
+      const log = [];
+      for (const run of runs) {
+        const d = run.d, m = QC.homeMonsterById[d.monster], ms = d.at.toMillis(), wk = QC.homeWeekOf(ms);
+        let rec;
+        if (d.done === true) rec = { right: d.right, win: d.win, exp: d.exp, week: d.week || wk, m: d.monster, verdict: d.verdict };
+        else {
+          let verdict = '', right = 0, win = false, exp = 0;
+          const idOk = m && run.id === d.monster + '-' + d.attempt;
+          const seedOk = idOk && [wk, QC.homeWeekOf(ms - 36 * 3600e3)].some((w) => QC.homeSeed(r.code, d.monster, w, d.attempt) === d.seed);
+          if (!idOk) verdict = 'รูปแบบรอบไม่ถูกต้อง';
+          else if (!seedOk) verdict = 'โจทย์ไม่ตรงกับที่ระบบสร้าง';
+          else {
+            const chk = QC.homeCheck(QC.homeQuestions(d.monster, d.seed), d.answers); right = chk.right; win = chk.win;
+            if (!win) verdict = 'ไม่ผ่าน';
+            else { const w = W(wk); if (w.won.has(d.monster)) verdict = 'ชนะ (เคยได้ EXP ตัวนี้แล้วสัปดาห์นี้)'; else { exp = Math.max(0, Math.min(QC.homeReward(r.data.dr, d.monster), cap - w.used)); verdict = exp ? 'ชนะ +' + exp + ' EXP' : 'ชนะ (เต็มเพดานสัปดาห์นี้)'; } }
+          }
+          await fs.updateDoc(run.ref, { done: true, right, win, exp, week: wk, verdict });
+          rec = { right, win, exp, week: wk, m: d.monster, verdict, fresh: true };
+          judged++; if (win) wins++; granted += exp;
+          const tr = document.createElement('tr');
+          for (const v of [r.data.nick, m ? m.th : d.monster, right + '/10', verdict]) { const td = document.createElement('td'); td.textContent = v; tr.append(td); }
+          tb.append(tr);
+        }
+        if (rec.win) { const w = W(rec.week); w.won.add(rec.m); w.used += rec.exp | 0; }
+        else if (rec.week) W(rec.week);
+        log.push({ m: rec.m, w: !!rec.win, e: rec.exp | 0, r: rec.right | 0 });
+        if (rec.exp > 0 && ms > Date.now() - 60 * 864e5) lastResults.push({ sid: r.data.sid, classId: r.data.classId, nick: r.data.nick, key: 'home:' + r.code + ':' + run.id, delta: rec.exp, reason: 'ดันเจี้ยนที่บ้าน: ' + (m ? m.th : rec.m) });
+      }
+      const cw = weeks[nowWeek] || { used: 0, won: new Set() };
+      await fs.updateDoc(fs.doc(db, 'homes', r.code), { wk: { key: nowWeek, used: cw.used, cap, won: [...cw.won] }, log: log.slice(-8) });
+    }
+    $('rv-tbl').hidden = !judged; $('dl-res').disabled = !lastResults.length;
+    $('rv-sum').textContent = 'ตรวจใหม่ ' + judged + ' รอบ • ชนะ ' + wins + ' • EXP ที่ให้ใหม่ ' + granted + ' • รายการรอนำเข้าแอปหลักทั้งหมด ' + lastResults.length;
+  } catch (err) { $('rv-sum').textContent = 'ไม่สำเร็จ: ' + (err.code || err.message); }
+  $('review').disabled = false;
+};
+$('dl-res').onclick = () => {
+  const out = { app: 'QuestClass Home results', v: 1, exportedAt: new Date().toISOString(), results: lastResults };
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' })); a.download = 'home-results-' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
 };
 </script>
 </body>
