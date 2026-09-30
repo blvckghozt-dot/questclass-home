@@ -70,7 +70,7 @@ input[type=file]{color:var(--muted)}
   <div class="card" id="t6" hidden>
     <h2>6. ตรวจดันเจี้ยนที่บ้าน</h2>
     <div class="small muted">กดตรวจ ระบบจะสร้างโจทย์ของแต่ละรอบใหม่จากเลขสุ่ม (seed) เทียบกับคำตอบที่ส่งมา ให้ EXP เฉพาะรอบที่ตอบถูกครบ 10 ข้อ ตัวละครละ 1 ครั้ง/สัปดาห์ และไม่เกินเพดาน</div>
-    <div class="row"><label class="small">เพดาน EXP/สัปดาห์ <input id="cap" type="number" min="0" max="100" value="15" style="width:70px;background:#0a0f1e;color:inherit;border:1px solid var(--line2);border-radius:6px;padding:6px"></label>
+    <div class="row"><label class="small">เพดาน EXP/สัปดาห์ <input id="cap" type="number" min="0" max="100" step="0.5" value="15" style="width:70px;background:#0a0f1e;color:inherit;border:1px solid var(--line2);border-radius:6px;padding:6px"></label>
       <button class="btn gold" id="review">ตรวจรอบที่ส่งมา</button><button class="btn" id="dl-res" disabled>ดาวน์โหลดผลไปแอปหลัก</button></div>
     <div id="rv-sum" class="small"></div>
     <div style="overflow:auto"><table id="rv-tbl" hidden><thead><tr><th>ชื่อเล่น</th><th>มอนสเตอร์</th><th>ถูก</th><th>ผล</th></tr></thead><tbody></tbody></table></div>
@@ -211,7 +211,7 @@ $('imp-go').onclick = async () => {
     for (const s of pending.students) {
       const old = bySid.get(s.sid); const code = old ? old.code : newCode(taken); taken.add(code);
       const oldWk = old && old.data.wk && old.data.wk.key === wk ? old.data.wk : { key: wk, used: 0, cap: 15, won: [] };
-      await fs.setDoc(fs.doc(db, 'homes', code), { v: 1, sid: s.sid, classId: pending.classId, no: s.no | 0, nick: String(s.nick).slice(0, 40), race: s.race, element: s.element, level: s.level | 0, exp: s.exp | 0, curAt: s.curAt | 0, nextAt: s.nextAt | 0, tasks: s.tasks || [], att: s.att, wk: oldWk, dr: pending.dungeonRewards || null, log: old && old.data.log ? old.data.log : [], updatedAt: fs.serverTimestamp() });
+      await fs.setDoc(fs.doc(db, 'homes', code), { v: 1, sid: s.sid, classId: pending.classId, no: s.no | 0, nick: String(s.nick).slice(0, 40), race: s.race, element: s.element, level: s.level | 0, exp: Math.round((+s.exp || 0) * 10) / 10, curAt: s.curAt | 0, nextAt: s.nextAt | 0, tasks: s.tasks || [], att: s.att, wk: oldWk, dr: pending.dungeonRewards || null, log: old && old.data.log ? old.data.log : [], updatedAt: fs.serverTimestamp() });
       old ? updated++ : added++;
     }
     $('imp-sum').textContent = 'เสร็จแล้ว: คนใหม่ ' + added + ' • อัปเดต ' + updated; await loadRoster();
@@ -243,7 +243,7 @@ $('cap').value = (() => { try { return localStorage.getItem('qc.cap') || '15'; }
 $('review').onclick = async () => {
   $('review').disabled = true; $('rv-sum').textContent = 'กำลังตรวจ…';
   try {
-    const cap = Math.max(0, Math.min(100, +$('cap').value || 0)); try { localStorage.setItem('qc.cap', String(cap)); } catch (e) { }
+    const cap = Math.max(0, Math.min(100, Math.round((+$('cap').value || 0) * 2) / 2)); try { localStorage.setItem('qc.cap', String(cap)); } catch (e) { }
     await loadRoster();
     const tb = document.querySelector('#rv-tbl tbody'); tb.textContent = ''; lastResults = [];
     const nowWeek = QC.homeWeekOf(Date.now()); let judged = 0, wins = 0, granted = 0;
@@ -263,7 +263,7 @@ $('review').onclick = async () => {
           if (!idOk) verdict = 'รูปแบบรอบไม่ถูกต้อง';
           else if (!seedOk) verdict = 'โจทย์ไม่ตรงกับที่ระบบสร้าง';
           else {
-            const chk = QC.homeCheck(QC.homeQuestions(d.monster, d.seed), d.answers); right = chk.right; win = chk.win;
+            const chk = QC.homeCheck(QC.homeQuestions(d.monster, d.seed), d.answers, d.ms); right = chk.right; win = chk.win;
             if (!win) verdict = 'ไม่ผ่าน';
             else { const w = W(wk); if (w.won.has(d.monster)) verdict = 'ชนะ (เคยได้ EXP ตัวนี้แล้วสัปดาห์นี้)'; else { exp = Math.max(0, Math.min(QC.homeReward(r.data.dr, d.monster), cap - w.used)); verdict = exp ? 'ชนะ +' + exp + ' EXP' : 'ชนะ (เต็มเพดานสัปดาห์นี้)'; } }
           }
@@ -274,9 +274,9 @@ $('review').onclick = async () => {
           for (const v of [r.data.nick, m ? m.th : d.monster, right + '/10', verdict]) { const td = document.createElement('td'); td.textContent = v; tr.append(td); }
           tb.append(tr);
         }
-        if (rec.win) { const w = W(rec.week); w.won.add(rec.m); w.used += rec.exp | 0; }
+        if (rec.win) { const w = W(rec.week); w.won.add(rec.m); w.used += +rec.exp || 0; }
         else if (rec.week) W(rec.week);
-        log.push({ m: rec.m, w: !!rec.win, e: rec.exp | 0, r: rec.right | 0 });
+        log.push({ m: rec.m, w: !!rec.win, e: +rec.exp || 0, r: rec.right | 0 });
         if (rec.exp > 0 && ms > Date.now() - 60 * 864e5) lastResults.push({ sid: r.data.sid, classId: r.data.classId, nick: r.data.nick, key: 'home:' + r.code + ':' + run.id, delta: rec.exp, reason: 'ดันเจี้ยนที่บ้าน: ' + (m ? m.th : rec.m) });
       }
       const cw = weeks[nowWeek] || { used: 0, won: new Set() };

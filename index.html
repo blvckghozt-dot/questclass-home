@@ -96,6 +96,11 @@ h1,h2,h3{font-family:var(--f-display);margin:0;font-weight:600;text-wrap:balance
 .dg-pad .key{appearance:none;font:700 1.5rem var(--f-data);min-height:56px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
 .dg-pad .key:active{background:#232c4a}
 .dg-pad .okk{background:linear-gradient(180deg,#f3cd75,#d9a53d);color:var(--ink);font-size:1.05rem;font-family:var(--f-body)}
+.dg-timer{height:10px;border-radius:99px;background:#0a0f1e;border:1px solid var(--line2);overflow:hidden}
+.dg-timer i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#55d69e,#e8bc58);transition:width .1s linear}
+.dg-timer.low i{background:var(--bad)}
+.dg-secs{text-align:center;font:700 1.4rem var(--f-data);color:var(--gold2)}.dg-secs.low{color:var(--bad)}
+.dg-rules{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .dg-score{text-align:center;font:700 3rem var(--f-data);color:var(--gold2)}
 .dg-rev{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
 .dg-rev li{display:flex;flex-direction:column;background:var(--panel2);border-radius:6px;padding:6px 10px}
@@ -224,7 +229,7 @@ function render(d) {
   $('h-race').textContent = race ? race.th : '-';
   $('h-elem').textContent = el ? 'ธาตุ' + el.th : '-';
   $('h-lv').textContent = lv;
-  const exp = d.exp | 0;
+  const exp = Math.round((+d.exp || 0) * 10) / 10;
   if (lv >= 99) { $('h-bar').style.width = '100%'; $('h-exp').textContent = 'EXP สะสม ' + exp.toLocaleString('th-TH') + ' (สูงสุดแล้ว เก็บต่อได้ไม่จำกัด)'; }
   else {
     const a = d.curAt | 0, b = d.nextAt | 0; const pct = b > a ? Math.max(0, Math.min(100, ((exp - a) / (b - a)) * 100)) : 0;

@@ -623,12 +623,17 @@ var QC = (function () {
     return qs;
   }
   function parseAnswer(s) { var t = String(s == null ? '' : s).replace(/[\u2212\u2013\u2014]/g, '-').replace(/,/g, '.').replace(/\s+/g, ''); if (!/^-?\d+(\.\d+)?$/.test(t)) return NaN; return Number(t); }
-  function homeCheck(qs, answers) {
+  var HOME_SECONDS = 10, HOME_EXP_FACTOR = 0.5;
+  // ms (optional): per-question thinking time; an answer slower than the limit (+1.5 s grace for network/clock jitter) does not count
+  function homeCheck(qs, answers, ms) {
     var ok = [], right = 0;
-    for (var i = 0; i < 10; i++) { var v = parseAnswer(answers && answers[i]); var good = qs && qs[i] && isFinite(v) && Math.abs(v - qs[i].answerValue) < 1e-9; ok.push(!!good); if (good) right++; }
+    for (var i = 0; i < 10; i++) {
+      var v = parseAnswer(answers && answers[i]); var slow = ms && typeof ms[i] === 'number' && ms[i] > HOME_SECONDS * 1000 + 1500;
+      var good = !slow && qs && qs[i] && isFinite(v) && Math.abs(v - qs[i].answerValue) < 1e-9; ok.push(!!good); if (good) right++;
+    }
     return { ok: ok, right: right, win: right === 10 };
   }
-  function homeReward(rewards, monsterId) { var m = homeMonsterById[monsterId]; if (!m) return 0; var r = rewards && rewards[m.mode] && rewards[m.mode][m.diff]; if (typeof r !== 'number') r = defaultSettings().dungeonRewards[m.mode][m.diff]; return r; }
+  function homeReward(rewards, monsterId) { var m = homeMonsterById[monsterId]; if (!m) return 0; var r = rewards && rewards[m.mode] && rewards[m.mode][m.diff]; if (typeof r !== 'number') r = defaultSettings().dungeonRewards[m.mode][m.diff]; return Math.round(r * HOME_EXP_FACTOR * 10) / 10; }
 
   // ---------- Dates (Asia/Bangkok) ----------
   function bangkokDate(d) {
@@ -709,7 +714,7 @@ var QC = (function () {
     generateQuestion: generateQuestion, diffIndex: diffIndex, fmtNum: fmtNum,
     bracketInfo: bracketInfo, buildBracket: buildBracket, syncBracket: syncBracket, setMatchWinner: setMatchWinner, readyMatches: readyMatches, findMatch: findMatch,
     shuffle: shuffle, bagNext: bagNext, makeGroups: makeGroups, makeBalancedGroups: makeBalancedGroups, groupRepeatPairs: groupRepeatPairs,
-    dailyBoss: dailyBoss, buildHomeExport: buildHomeExport, HOME_MONSTERS: HOME_MONSTERS, homeMonsterById: homeMonsterById, homeSeed: homeSeed, homeWeekOf: homeWeekOf, homeQuestions: homeQuestions, homeCheck: homeCheck, homeReward: homeReward, parseAnswer: parseAnswer, examBoss: examBoss, effectiveScore: effectiveScore, examPassed: examPassed,
+    dailyBoss: dailyBoss, buildHomeExport: buildHomeExport, HOME_MONSTERS: HOME_MONSTERS, homeMonsterById: homeMonsterById, homeSeed: homeSeed, homeWeekOf: homeWeekOf, homeQuestions: homeQuestions, homeCheck: homeCheck, homeReward: homeReward, HOME_SECONDS: HOME_SECONDS, HOME_EXP_FACTOR: HOME_EXP_FACTOR, parseAnswer: parseAnswer, examBoss: examBoss, effectiveScore: effectiveScore, examPassed: examPassed,
     bangkokDate: bangkokDate, daysInMonth: daysInMonth, isoWeekKey: isoWeekKey, parseRosterLines: parseRosterLines,
     defaultSettings: defaultSettings, sanitizeSettings: sanitizeSettings, clamp: clamp, mulberry32: mulberry32
   };

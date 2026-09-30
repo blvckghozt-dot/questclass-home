@@ -33,14 +33,15 @@ export function initDungeon(host, ctx) {
   const stops = [];
 
   const head = $c('div', 'dg-head');
-  const cap = wk ? (wk.used | 0) + ' / ' + (wk.cap | 0) : '0 / ' + ((doc.wk && doc.wk.cap) || 15);
-  head.append($c('div', 'small', 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: ' + cap), $c('div', 'tiny muted', 'ตอบถูกครบ 10 ข้อติดกันจึงชนะ • ชนะแต่ละตัวได้ EXP 1 ครั้ง/สัปดาห์ • แพ้ลองใหม่ได้ ข้อสอบชุดใหม่ทุกครั้ง • EXP เข้าเมื่อครูตรวจ'));
+  const fx = (n) => (Math.round((+n || 0) * 10) / 10).toString();
+  const cap = wk ? fx(wk.used) + ' / ' + fx(wk.cap) : '0 / ' + ((doc.wk && doc.wk.cap) || 15);
+  head.append($c('div', 'small', 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: ' + cap), $c('div', 'tiny muted', 'ตอบถูกครบ 10 ข้อ ข้อละไม่เกิน ' + QC.HOME_SECONDS + ' วินาที จึงชนะ • ชนะแต่ละตัวได้ EXP 1 ครั้ง/สัปดาห์ • แพ้ลองใหม่ได้ ข้อสอบชุดใหม่ทุกครั้ง • EXP เข้าเมื่อครูตรวจ'));
   host.append(head);
 
   const log = doc.log || [];
   if (log.length) {
     const box = $c('div', 'dg-log');
-    for (const l of log.slice(-4).reverse()) box.append($c('div', 'tiny ' + (l.w ? 'ok' : 'muted'), (l.w ? '✔ ชนะ ' : '✘ ไม่ผ่าน ') + (QC.homeMonsterById[l.m] ? QC.homeMonsterById[l.m].th : l.m) + (l.w ? (l.e ? ' +' + l.e + ' EXP' : ' (ไม่ได้ EXP: ชนะแล้ว/เต็มเพดาน)') : ' ' + (l.r | 0) + '/10')));
+    for (const l of log.slice(-4).reverse()) box.append($c('div', 'tiny ' + (l.w ? 'ok' : 'muted'), (l.w ? '✔ ชนะ ' : '✘ ไม่ผ่าน ') + (QC.homeMonsterById[l.m] ? QC.homeMonsterById[l.m].th : l.m) + (l.w ? (l.e ? ' +' + fx(l.e) + ' EXP' : ' (ไม่ได้ EXP: ชนะแล้ว/เต็มเพดาน)') : ' ' + (l.r | 0) + '/10')));
     host.append(box);
   }
 
@@ -51,7 +52,7 @@ export function initDungeon(host, ctx) {
     const cv = $c('canvas', 'dg-sp'); cv.width = 48; cv.height = 48;
     const status = won.has(m.id) ? 'won' : pendingWins.has(m.id) ? 'wait' : '';
     const exp = QC.homeReward(rewards, m.id);
-    card.append(cv, $c('b', '', m.th), $c('span', 'tiny muted', DIFF_TH[m.diff] + ' • ' + exp + ' EXP'), $c('span', 'tiny st ' + status, status === 'won' ? 'ชนะแล้ว ✔' : status === 'wait' ? 'รอครูตรวจ' : 'ท้าสู้'));
+    card.append(cv, $c('b', '', m.th), $c('span', 'tiny muted', DIFF_TH[m.diff] + ' • ' + fx(exp) + ' EXP'), $c('span', 'tiny st ' + status, status === 'won' ? 'ชนะแล้ว ✔' : status === 'wait' ? 'รอครูตรวจ' : 'ท้าสู้'));
     if (status === 'won') card.disabled = true;
     card.onclick = () => start(m.id);
     card.__load = () => spriteCanvas(cv, m.id, false);
@@ -87,19 +88,43 @@ export function initDungeon(host, ctx) {
   function btn(t, f, cls) { const b = $c('button', 'btn ' + (cls || ''), t); b.type = 'button'; b.onclick = f; return b; }
 
   function play(st) {
-    const qs = QC.homeQuestions(st.m, st.seed), mon = QC.homeMonsterById[st.m];
+    const qs = QC.homeQuestions(st.m, st.seed), mon = QC.homeMonsterById[st.m], LIM = QC.HOME_SECONDS * 1000;
     const o = overlay();
     const top = $c('div', 'dg-top'); top.append($c('b', '', mon.th), btn('ออก', close, 'sm'));
     const cv = $c('canvas', 'dg-hero'); cv.width = 64; cv.height = 64;
-    const prog = $c('div', 'dg-prog'); const q = $c('div', 'dg-q'); const inp = $c('div', 'dg-ans num');
-    o.append(top, cv, prog, q, inp);
     spriteCanvas(cv, st.m, true).then((s) => { if (ov === o) stopAnim = s; else s(); });
-    let cur = '', tq = Date.now();
+    if (!st.began) {
+      // intro: nothing about the questions is visible until the player presses start
+      o.append(top, cv, $c('h2', '', 'พร้อมสู้กับ ' + mon.th + ' ไหม?'));
+      const rules = $c('ul', 'dg-rules');
+      for (const t of ['10 ข้อ ข้อละ ' + QC.HOME_SECONDS + ' วินาที หมดเวลาถือว่าผิด', 'ต้องถูกครบทุกข้อจึงชนะ', 'ห้ามออกจากหน้านี้ระหว่างเล่น (สลับแอป/เปิดเครื่องคิดเลข) ข้อนั้นจะถือว่าหมดเวลา', 'ใช้คิดในใจหรือกระดาษ เพื่อให้เก่งขึ้นจริง']) rules.append($c('li', 'small', t));
+      o.append(rules, btn('เริ่มเลย!', () => { st.began = true; st.tq = Date.now(); save(skey(st.m), st); play(st); }, 'gold'));
+      return;
+    }
+    const bar = $c('div', 'dg-timer'), fill = $c('i'); bar.append(fill); const secs = $c('div', 'dg-secs num');
+    const prog = $c('div', 'dg-prog'); const q = $c('div', 'dg-q'); const inp = $c('div', 'dg-ans num');
+    o.append(top, cv, prog, bar, secs, q, inp);
+    let cur = '', done = false, iv = null;
     const pad = $c('div', 'dg-pad');
+    const stopTimer = () => { if (iv) { clearInterval(iv); iv = null; } document.removeEventListener('visibilitychange', onVis); };
+    // record an answer ('' = timed out / left the page) and move on
+    const record = (ans, ms) => {
+      if (done) return; st.ans.push(ans); st.ms.push(Math.max(0, Math.min(LIM, Math.round(ms)))); st.idx++; cur = ''; st.tq = Date.now(); save(skey(st.m), st);
+      if (st.idx >= 10) { done = true; stopTimer(); return finish(st, qs); }
+      show();
+    };
+    const expire = () => record('', LIM);
+    const onVis = () => { if (document.hidden) { st.hid = Date.now(); save(skey(st.m), st); } else if (st.hid) { st.hid = 0; expire(); } };
     const show = () => {
-      const i = st.idx; prog.textContent = 'ข้อ ' + (i + 1) + ' / 10'; q.textContent = qs[i].text.replace(' = ?', ' = ?'); inp.textContent = cur || '…';
+      prog.textContent = 'ข้อ ' + (st.idx + 1) + ' / 10'; q.textContent = qs[st.idx].text; inp.textContent = cur || '…';
+    };
+    const tickT = () => {
+      const left = LIM - (Date.now() - st.tq);
+      if (left <= 0) return expire();
+      fill.style.width = (left / LIM * 100).toFixed(1) + '%'; secs.textContent = Math.ceil(left / 1000); bar.classList.toggle('low', left <= 3000); secs.classList.toggle('low', left <= 3000);
     };
     const press = (k) => {
+      if (done) return;
       if (k === 'DEL') cur = cur.slice(0, -1);
       else if (k === 'OK') return submit();
       else if (k === '-') cur = cur.startsWith('-') ? cur.slice(1) : '-' + cur;
@@ -113,13 +138,17 @@ export function initDungeon(host, ctx) {
     o.append(pad);
     keyH = (e) => { if (/^[0-9.]$/.test(e.key) || e.key === '-') press(e.key); else if (e.key === 'Backspace') press('DEL'); else if (e.key === 'Enter') press('OK'); else if (e.key === ',') press('.'); };
     document.addEventListener('keydown', keyH);
+    document.addEventListener('visibilitychange', onVis);
     function submit() {
-      if (!cur || cur === '-' || cur === '-0') { if (cur === '-0') cur = '0'; else return; }
-      st.ans.push(cur.endsWith('.') ? cur.slice(0, -1) : cur); st.ms.push(Math.min(3600000, Date.now() - tq)); st.idx++; cur = ''; tq = Date.now(); save(skey(st.m), st);
-      if (st.idx >= 10) return finish(st, qs);
-      show();
+      if (!cur || cur === '-') return;
+      const el = Date.now() - st.tq; if (el > LIM) return expire();
+      record(cur.endsWith('.') ? cur.slice(0, -1) : cur, el);
     }
-    show();
+    // came back after closing/reloading mid-question: that question is lost
+    if (st.hid || Date.now() - st.tq > LIM) { st.hid = 0; show(); expire(); if (done) return; }
+    show(); tickT(); iv = setInterval(tickT, 100);
+    const oldClose = close; // leaving via the "ออก" button also stops the timer loop
+    top.querySelector('button').onclick = () => { stopTimer(); close(); };
   }
 
   async function finish(st, qs) {
