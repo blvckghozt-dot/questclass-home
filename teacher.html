@@ -92,6 +92,7 @@ async function expect(name, wantOk, fn) {
 $('selftest').onclick = async () => {
   $('selftest').disabled = true; $('log').textContent = ''; $('log').dataset.init = '';
   try {
+    for (const r of (await fs.getDocs(fs.collection(db, 'homes', TEST, 'runs'))).docs) await fs.deleteDoc(r.ref);
     await fs.setDoc(fs.doc(db, 'homes', TEST), { v: 1, nick: 'น้องทดสอบ', race: 'human', element: 'fire', level: 1, exp: 0, updatedAt: fs.serverTimestamp() });
     const H = (c) => fs.doc(anonDb, 'homes', c);
     const R = (c, id) => fs.doc(anonDb, 'homes', c, 'runs', id);
