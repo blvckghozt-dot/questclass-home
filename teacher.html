@@ -20,6 +20,11 @@ h1,h2{margin:0;font-weight:600}h1{font-size:1.5rem;color:var(--gold2)}h2{font-si
 pre{margin:0;background:#0a0f1e;border:1px solid var(--line2);border-radius:6px;padding:10px;overflow:auto;max-height:340px;font:.84rem/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
 .pass{color:var(--good)}.fail{color:var(--bad)}
 [hidden]{display:none!important}
+table{border-collapse:collapse;width:100%}th,td{padding:6px 8px;border-bottom:1px solid var(--line2);text-align:left}
+td.code{font:700 1.05rem ui-monospace,Consolas,monospace;letter-spacing:.12em}
+input[type=file]{color:var(--muted)}
+#cards{display:none}
+@media print{body{background:#fff;color:#000;padding:0}.wrap{display:none}#cards{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:8px}.pc{border:1.5px dashed #444;border-radius:8px;padding:10px 12px;break-inside:avoid;color:#000}.pc b{font-size:1.15rem}.pc .c{font:700 1.7rem ui-monospace,Consolas,monospace;letter-spacing:.15em;margin:6px 0}.pc small{display:block;font-size:.72rem;color:#333;line-height:1.35}}
 </style>
 </head>
 <body>
@@ -47,7 +52,23 @@ pre{margin:0;background:#0a0f1e;border:1px solid var(--line2);border-radius:6px;
     <div class="row"><button class="btn" id="selftest" disabled>เริ่มทดสอบ</button><button class="btn" id="cleanup" disabled>ลบข้อมูลทดสอบ</button></div>
     <pre id="log">รอการทดสอบ…</pre>
   </div>
+  <div class="card" id="t4">
+    <h2>4. นำเข้ารายชื่อห้องจากแอปหลัก</h2>
+    <div class="small muted">ในแอป QuestClass เปิดหน้า "หอพยากรณ์" กด <b>ส่งออกไปบ้านนักเรียน</b> ได้ไฟล์ .json แล้วเลือกไฟล์นั้นที่นี่ ไฟล์นี้มีเฉพาะชื่อเล่น ไม่มีชื่อจริง คนเดิมจะได้รหัสเดิม คนใหม่จะได้รหัสใหม่</div>
+    <input type="file" id="imp" accept=".json,application/json" disabled>
+    <div id="imp-sum" class="small"></div>
+    <div class="row"><button class="btn gold" id="imp-go" disabled>อัปโหลดขึ้นเว็บบ้าน</button></div>
+  </div>
+
+  <div class="card" id="t5" hidden>
+    <h2>5. รหัสนักเรียน</h2>
+    <div class="row"><button class="btn" id="print">พิมพ์บัตรรหัส</button><button class="btn" id="csv">ดาวน์โหลด CSV</button><button class="btn" id="reload">โหลดรายชื่อจากเว็บ</button></div>
+    <div class="small muted">เก็บ CSV ไว้เองเท่านั้น ห้ามอัปขึ้น GitHub ถ้านักเรียนทำรหัสหาย กด "รหัสใหม่" รหัสเก่าจะใช้ไม่ได้ทันที</div>
+    <div style="overflow:auto"><table id="tbl"><thead><tr><th>เลขที่</th><th>ชื่อเล่น</th><th>รหัส</th><th>Lv</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+
 </div>
+<div id="cards"></div>
 
 <script type="module">
 import { firebaseConfig, TEACHER_EMAIL, SDK } from './firebase-config.js';
@@ -65,7 +86,8 @@ function ok(u) { return u && u.email === TEACHER_EMAIL && u.emailVerified; }
 au.onAuthStateChanged(auth, (u) => {
   $('who').textContent = u ? 'เข้าสู่ระบบเป็น ' + u.email + (ok(u) ? ' ✔ ครู' : ' ✘ ไม่ใช่บัญชีครู') : 'ยังไม่ได้เข้าสู่ระบบ';
   $('signin').hidden = !!u; $('signout').hidden = !u;
-  for (const id of ['sample', 'selftest', 'cleanup']) $(id).disabled = !ok(u);
+  for (const id of ['sample', 'selftest', 'cleanup', 'imp']) $(id).disabled = !ok(u);
+  if (ok(u)) loadRoster();
 });
 $('signin').onclick = async () => { try { await au.signInWithPopup(auth, new au.GoogleAuthProvider()); } catch (e) { $('who').textContent = 'เข้าสู่ระบบไม่สำเร็จ: ' + (e.code || e.message); } };
 $('signout').onclick = () => au.signOut(auth);
@@ -122,6 +144,86 @@ $('cleanup').onclick = async () => {
   for (const r of runs.docs) await fs.deleteDoc(r.ref);
   await fs.deleteDoc(fs.doc(db, 'homes', TEST));
   log('ลบข้อมูลทดสอบแล้ว (' + runs.size + ' รอบ + บ้าน)');
+};
+
+// ---------- roster import / codes ----------
+const ALPHA = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const fmt = (c) => c.slice(0, 4) + '-' + c.slice(4);
+function newCode(taken) {
+  for (let n = 0; n < 50; n++) {
+    const b = crypto.getRandomValues(new Uint8Array(8)); let c = '';
+    for (const x of b) c += ALPHA[x % ALPHA.length];
+    if (!taken.has(c) && c !== TEST) return c;
+  }
+  throw new Error('สร้างรหัสไม่สำเร็จ');
+}
+function weekKey() { const d = new Date(Date.now() + 7 * 3600e3); const dow = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - dow); return d.toISOString().slice(0, 10); }
+let roster = [];   // {code, data}
+let pending = null;
+async function loadRoster() {
+  const qs = await fs.getDocs(fs.collection(db, 'homes'));
+  roster = qs.docs.filter((d) => d.id !== TEST && d.data().sid).map((d) => ({ code: d.id, data: d.data() })).sort((a, b) => (a.data.classId || '').localeCompare(b.data.classId || '') || (a.data.no || 0) - (b.data.no || 0));
+  drawTable();
+}
+function drawTable() {
+  $('t5').hidden = !roster.length;
+  const tb = document.querySelector('#tbl tbody'); tb.textContent = '';
+  for (const r of roster) {
+    const tr = document.createElement('tr');
+    for (const [v, cls] of [[r.data.no, ''], [r.data.nick, ''], [fmt(r.code), 'code'], [r.data.level, '']]) { const td = document.createElement('td'); td.textContent = v; if (cls) td.className = cls; tr.append(td); }
+    const td = document.createElement('td'), b = document.createElement('button'); b.className = 'btn'; b.textContent = 'รหัสใหม่';
+    b.onclick = async () => {
+      if (!confirm('ออกรหัสใหม่ให้ ' + r.data.nick + ' ? รหัสเก่าจะใช้ไม่ได้ทันที')) return;
+      b.disabled = true;
+      const taken = new Set(roster.map((x) => x.code)), nc = newCode(taken);
+      await fs.setDoc(fs.doc(db, 'homes', nc), r.data); await fs.deleteDoc(fs.doc(db, 'homes', r.code));
+      const runs = await fs.getDocs(fs.collection(db, 'homes', r.code, 'runs')); for (const x of runs.docs) await fs.deleteDoc(x.ref);
+      r.code = nc; drawTable();
+    };
+    td.append(b); tr.append(td); tb.append(tr);
+  }
+}
+$('imp').onchange = async (e) => {
+  const f = e.target.files[0]; pending = null; $('imp-go').disabled = true; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (j.app !== 'QuestClass Home export' || !Array.isArray(j.students) || !j.students.length) throw new Error('ไม่ใช่ไฟล์ส่งออกไปบ้านนักเรียน');
+    if (JSON.stringify(j).match(/"name"\s*:/)) throw new Error('ไฟล์มีฟิลด์ name (ชื่อจริง) ไม่รับไฟล์นี้');
+    pending = j; $('imp-sum').textContent = 'ห้อง ' + j.className + ' • ' + j.students.length + ' คน • ข้อมูล ณ ' + j.asOf; $('imp-go').disabled = false;
+  } catch (err) { $('imp-sum').textContent = 'อ่านไฟล์ไม่ได้: ' + err.message; }
+};
+$('imp-go').onclick = async () => {
+  if (!pending) return; $('imp-go').disabled = true;
+  try {
+    await loadRoster();
+    const bySid = new Map(roster.map((r) => [r.data.sid, r])), taken = new Set(roster.map((r) => r.code)), wk = weekKey(); let added = 0, updated = 0;
+    for (const s of pending.students) {
+      const old = bySid.get(s.sid); const code = old ? old.code : newCode(taken); taken.add(code);
+      const oldWk = old && old.data.wk && old.data.wk.key === wk ? old.data.wk : { key: wk, used: 0, cap: 15, won: [] };
+      await fs.setDoc(fs.doc(db, 'homes', code), { v: 1, sid: s.sid, classId: pending.classId, no: s.no | 0, nick: String(s.nick).slice(0, 40), race: s.race, element: s.element, level: s.level | 0, exp: s.exp | 0, curAt: s.curAt | 0, nextAt: s.nextAt | 0, tasks: s.tasks || [], att: s.att, wk: oldWk, updatedAt: fs.serverTimestamp() });
+      old ? updated++ : added++;
+    }
+    $('imp-sum').textContent = 'เสร็จแล้ว: คนใหม่ ' + added + ' • อัปเดต ' + updated; await loadRoster();
+  } catch (err) { $('imp-sum').textContent = 'ไม่สำเร็จ: ' + (err.code || err.message); }
+  $('imp-go').disabled = false;
+};
+$('reload').onclick = loadRoster;
+$('csv').onclick = () => {
+  const rows = [['เลขที่', 'ชื่อเล่น', 'รหัส', 'ห้อง']].concat(roster.map((r) => [r.data.no, r.data.nick, fmt(r.code), r.data.classId]));
+  const csv = '\ufeff' + rows.map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'codes.csv'; a.click();
+};
+$('print').onclick = () => {
+  const url = location.href.replace(/teacher\.html.*$/, '');
+  const box = $('cards'); box.textContent = '';
+  for (const r of roster) {
+    const d = document.createElement('div'); d.className = 'pc';
+    const b = document.createElement('b'); b.textContent = '#' + r.data.no + ' ' + r.data.nick;
+    const c = document.createElement('div'); c.className = 'c'; c.textContent = fmt(r.code);
+    const s = document.createElement('small'); s.textContent = 'เข้าบ้านนักผจญภัยที่ ' + url + ' แล้วใส่รหัสนี้ • รหัสเหมือนรหัสผ่าน อย่าบอกเพื่อน • ทำหายให้แจ้งครู';
+    d.append(b, c, s); box.append(d);
+  }
+  window.print();
 };
 </script>
 </body>

@@ -573,6 +573,35 @@ var QC = (function () {
   }
   function examPassed(task, sid) { var e = effectiveScore(task, sid); return e !== null && e >= (task.passScore || 0); }
 
+
+  // ---------- Student-home export (nicknames only; no real names ever leave the app) ----------
+  // Returns { file, missingNick: [no...] } where file is a plain JSON-able object.
+  function buildHomeExport(o) {
+    var reqs = o.reqs, today = o.today || bangkokDate(), missing = [];
+    var dates = Object.keys(o.attendance || {}).sort();
+    var students = (o.students || []).map(function (s) {
+      var nick = String(s.nick || '').trim();
+      if (!nick) { missing.push(s.no); nick = 'นักผจญภัย ' + s.no; }
+      var exp = Math.max(0, o.expOf(s.id) || 0), pr = levelProgress(exp, reqs);
+      var tasks = [];
+      (o.tasks || []).forEach(function (t) {
+        if ((t.rosterIds || []).indexOf(s.id) < 0) return;
+        var label = String(t.name || '').slice(0, 80);
+        if (t.type === 'check') { if (!(t.values && t.values[s.id] === true)) tasks.push({ t: label, d: t.date || '' }); }
+        else if (t.type === 'score') { var e = effectiveScore(t, s.id); if (e !== null && e < (t.passScore || 0)) tasks.push({ t: 'สอบซ่อม: ' + label, d: '' }); }
+      });
+      var att = { present: 0, late: 0, absent: 0, total: 0, last: [] };
+      dates.forEach(function (d) {
+        var st = (o.attendance[d].records || {})[s.id]; if (!st) return;
+        att.total++; if (st === 'present') att.present++; else if (st === 'late') att.late++; else if (st === 'absent') att.absent++;
+        var code = st === 'present' ? 'P' : st === 'late' ? 'L' : st === 'absent' ? 'A' : ''; if (code) att.last.push({ d: d, s: code });
+      });
+      att.last = att.last.slice(-30);
+      return { sid: s.id, no: s.no, nick: nick.slice(0, 40), race: s.race || 'human', element: s.element || 'fire', level: pr.level, exp: exp, curAt: pr.cur, nextAt: pr.next == null ? 0 : pr.next, tasks: tasks.slice(0, 40), att: att };
+    });
+    return { file: { app: 'QuestClass Home export', v: 1, exportedAt: new Date().toISOString(), classId: o.classId, className: String(o.className || '').slice(0, 60), asOf: today, students: students }, missingNick: missing };
+  }
+
   // ---------- Dates (Asia/Bangkok) ----------
   function bangkokDate(d) {
     d = d || new Date();
@@ -652,7 +681,7 @@ var QC = (function () {
     generateQuestion: generateQuestion, diffIndex: diffIndex, fmtNum: fmtNum,
     bracketInfo: bracketInfo, buildBracket: buildBracket, syncBracket: syncBracket, setMatchWinner: setMatchWinner, readyMatches: readyMatches, findMatch: findMatch,
     shuffle: shuffle, bagNext: bagNext, makeGroups: makeGroups, makeBalancedGroups: makeBalancedGroups, groupRepeatPairs: groupRepeatPairs,
-    dailyBoss: dailyBoss, examBoss: examBoss, effectiveScore: effectiveScore, examPassed: examPassed,
+    dailyBoss: dailyBoss, buildHomeExport: buildHomeExport, examBoss: examBoss, effectiveScore: effectiveScore, examPassed: examPassed,
     bangkokDate: bangkokDate, daysInMonth: daysInMonth, isoWeekKey: isoWeekKey, parseRosterLines: parseRosterLines,
     defaultSettings: defaultSettings, sanitizeSettings: sanitizeSettings, clamp: clamp, mulberry32: mulberry32
   };
