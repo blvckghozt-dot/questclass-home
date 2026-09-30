@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>บ้านนักผจญภัย QuestClass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Pridi:wght@500;600;700&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#080b16;--bg2:#0c1121;--panel:#0f1527;--panel2:#161d33;
+  --line:rgba(232,188,88,.28);--line2:rgba(255,255,255,.09);
+  --gold:#e8bc58;--gold2:#ffd98a;--good:#55d69e;--bad:#ef7655;--warn:#f1c34a;
+  --text:#f3f0e7;--muted:#a9b0c4;--ink:#1a1206;--accent:#ffd98a;
+  --f-display:"Pridi","Noto Serif Thai",Georgia,serif;
+  --f-body:"IBM Plex Sans Thai","Noto Sans Thai","Segoe UI",Tahoma,sans-serif;
+  --f-data:"Chakra Petch","IBM Plex Sans Thai","Segoe UI",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:radial-gradient(1200px 500px at 50% -10%,#1a2140 0%,var(--bg) 60%);color:var(--text);font:15px/1.55 var(--f-body);-webkit-font-smoothing:antialiased;padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.num{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}.small{font-size:.86rem}.tiny{font-size:.76rem}
+h1,h2,h3{font-family:var(--f-display);margin:0;font-weight:600;text-wrap:balance}
+.card{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:14px 16px}
+.card.gold{border-color:var(--line)}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel2);border-radius:6px;padding:10px 16px;cursor:pointer;font-weight:600;min-height:44px}
+.btn.gold{background:linear-gradient(180deg,#f3cd75,#d9a53d);color:var(--ink);border-color:#f3cd75}
+.btn.sm{padding:6px 12px;min-height:36px;font-size:.88rem}
+.btn:disabled{opacity:.5;cursor:default}
+[hidden]{display:none!important}
+
+/* login */
+#login{margin-top:6vh}
+.brand{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;margin-bottom:6px}
+.brand small{font:600 .72rem var(--f-data);letter-spacing:.16em;color:var(--muted)}
+.brand h1{font-size:1.9rem;color:var(--gold2)}
+.codebox{width:100%;text-align:center;font:700 1.7rem var(--f-data);letter-spacing:.28em;padding:12px 8px;border-radius:6px;border:1px solid var(--line);background:#0a0f1e;text-transform:uppercase}
+.err{color:var(--bad);min-height:1.4em}
+
+/* home */
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top b{font:700 .78rem var(--f-data);letter-spacing:.14em;color:var(--muted)}
+.hero{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding-top:8px;position:relative;overflow:hidden}
+.stage{width:min(72vw,280px);aspect-ratio:1;display:grid;place-items:center;position:relative}
+.stage::before{content:"";position:absolute;inset:auto 12% 6% 12%;height:14%;border-radius:50%;background:radial-gradient(closest-side,var(--glow,#ffffff55),transparent);opacity:.7}
+#hero-cv{width:100%;height:100%;image-rendering:pixelated;position:relative}
+.hero h2{font-size:1.4rem}
+.title-line{color:var(--gold2);font-weight:600}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.chip{font:600 .78rem var(--f-data);padding:2px 10px;border-radius:99px;border:1px solid var(--line);background:#0a0f1e}
+.lv{display:flex;align-items:baseline;gap:8px;justify-content:center}
+.lv b{font:700 2.3rem var(--f-data);color:var(--gold2)}
+.bar{height:12px;border-radius:99px;background:#0a0f1e;border:1px solid var(--line2);overflow:hidden;width:100%}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#8b6ee8,#e8bc58);border-radius:99px;transition:width .6s}
+.sec h3{font-size:1.05rem;margin-bottom:8px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.list li{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:8px 10px;border-radius:6px;background:var(--panel2)}
+.list .t{min-width:0;overflow-wrap:anywhere}
+.tag{font:600 .74rem var(--f-data);white-space:nowrap;padding:1px 8px;border-radius:99px;border:1px solid var(--line2)}
+.tag.late{color:var(--bad);border-color:var(--bad)}.tag.soon{color:var(--warn);border-color:var(--warn)}.tag.ok{color:var(--good);border-color:var(--good)}
+.att{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.att div{background:var(--panel2);border-radius:6px;padding:8px 4px;text-align:center}
+.att b{display:block;font:700 1.35rem var(--f-data)}
+.att span{font-size:.76rem;color:var(--muted)}
+.dots{display:flex;gap:5px;flex-wrap:wrap}
+.dot{width:16px;height:16px;border-radius:4px;background:#2a3250}
+.dot.P{background:var(--good)}.dot.L{background:var(--warn)}.dot.A{background:var(--bad)}
+.soon-card{display:flex;gap:12px;align-items:center}
+.soon-card .ic{font-size:2rem}
+.foot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<section id="login" class="stack" hidden style="display:flex;flex-direction:column;gap:14px">
+  <div class="brand"><small>QUESTCLASS RPG</small><h1>บ้านนักผจญภัย</h1><span class="muted">ใส่รหัสส่วนตัวที่ครูให้ เพื่อกลับเข้าบ้านของตัวเอง</span></div>
+  <form id="login-form" class="card gold" style="display:flex;flex-direction:column;gap:12px" autocomplete="off">
+    <label for="code" class="small muted">รหัสส่วนตัว 8 ตัว</label>
+    <input id="code" class="codebox" inputmode="latin" maxlength="9" placeholder="XXXX-XXXX" autocapitalize="characters" autocomplete="off" spellcheck="false">
+    <div id="login-err" class="err small" role="alert"></div>
+    <button id="login-btn" class="btn gold" type="submit">เข้าสู่บ้าน</button>
+    <p class="tiny muted" style="margin:0">รหัสนี้เหมือนรหัสผ่านของคุณ อย่าบอกหรือส่งให้เพื่อน ถ้ารหัสหลุดหรือลืม แจ้งครูเพื่อขอรหัสใหม่</p>
+  </form>
+</section>
+
+<section id="home" hidden style="display:flex;flex-direction:column;gap:14px">
+  <div class="top"><b>บ้านนักผจญภัย</b><button id="logout" class="btn sm" type="button">ออก</button></div>
+
+  <div class="card gold hero" id="hero">
+    <div class="stage" id="stage"><canvas id="hero-cv" width="10" height="10" aria-label="ตัวละครของคุณ"></canvas></div>
+    <h2 id="h-nick"></h2>
+    <div class="title-line" id="h-title"></div>
+    <div class="chips"><span class="chip" id="h-race"></span><span class="chip" id="h-elem"></span></div>
+    <div class="lv"><span class="muted small">เลเวล</span><b id="h-lv" class="num"></b><span class="muted small">/ 99</span></div>
+    <div class="bar" role="progressbar" aria-label="EXP"><i id="h-bar" style="width:0%"></i></div>
+    <div class="small num" id="h-exp"></div>
+  </div>
+
+  <div class="card sec" id="sec-tasks">
+    <h3>งานที่ต้องส่ง <span class="tag" id="task-count"></span></h3>
+    <ul class="list" id="task-list"></ul>
+  </div>
+
+  <div class="card sec" id="sec-att">
+    <h3>วันมาเรียนของฉัน</h3>
+    <div class="att" id="att-sum"></div>
+    <div class="dots" id="att-dots" aria-label="ประวัติมาเรียนล่าสุด"></div>
+    <p class="tiny muted" style="margin:8px 0 0">เขียว = มา, เหลือง = สาย, แดง = ขาด</p>
+  </div>
+
+  <div class="card sec">
+    <h3>ดันเจี้ยนที่บ้าน</h3>
+    <div class="soon-card"><div class="ic" aria-hidden="true">⚔</div>
+      <div><div id="wk-line" class="small"></div><div class="tiny muted">เปิดให้เล่นเร็ว ๆ นี้ ตอบถูกครบ 10 ข้อติดกันจึงจะชนะมอนสเตอร์</div></div></div>
+  </div>
+
+  <div class="foot"><button id="refresh" class="btn sm" type="button">รีเฟรชข้อมูล</button></div>
+  <p class="tiny muted" id="updated" style="text-align:center;margin:0"></p>
+</section>
+</div>
+
+<script src="core.js"></script>
+<script src="realart-core.js"></script>
+<script type="module">
+import { firebaseConfig, SDK } from './firebase-config.js';
+
+const $ = (id) => document.getElementById(id);
+const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const STAGES = [1, 10, 20, 35, 50, 65, 80, 99];
+let db = null, fsm = null, cur = null, stopAnim = null;
+
+// ---------- data ----------
+async function initDb() {
+  if (db) return;
+  const [{ initializeApp }, m] = await Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]);
+  db = m.getFirestore(initializeApp(firebaseConfig)); fsm = m;
+}
+function demoDoc() {
+  const d = new Date(); const day = (n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+  return { v: 1, nick: 'น้องตัวอย่าง', race: 'celestial', element: 'light', level: 72, exp: 690, curAt: 644, nextAt: 703,
+    tasks: [{ t: 'แบบฝึกหัด บทที่ 3 (จำนวนจริง)', d: day(2) }, { t: 'ใบงาน ทศนิยมและเศษส่วน', d: day(-1) }, { t: 'โครงงานคณิตกลุ่ม', d: day(9) }],
+    att: { present: 41, late: 3, absent: 2, total: 46, last: [['', 'P'], ['', 'P'], ['', 'L'], ['', 'P'], ['', 'P'], ['', 'A'], ['', 'P'], ['', 'P'], ['', 'P'], ['', 'P']] },
+    wk: { key: '2026-W40', used: 6, cap: 15 }, updatedAt: Date.now() };
+}
+async function fetchHome(code) {
+  if (code === 'DEMO') return demoDoc();
+  await initDb();
+  const snap = await fsm.getDoc(fsm.doc(db, 'homes', code));
+  return snap.exists() ? snap.data() : null;
+}
+
+// ---------- helpers ----------
+function normCode(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function validCode(c) { return c === 'DEMO' || (c.length === 8 && [...c].every((ch) => ALPHABET.includes(ch))); }
+function bkkToday() { return new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10); }
+function daysBetween(a, b) { return Math.round((Date.parse(b) - Date.parse(a)) / 864e5); }
+function thDate(s) { try { return new Date(s + 'T00:00:00+07:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }); } catch (e) { return s; } }
+function save(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { } }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function show(id) { for (const s of ['login', 'home']) $(s).hidden = s !== id; }
+
+// ---------- hero sprite ----------
+async function drawHero(race, element, level) {
+  if (stopAnim) { stopAnim(); stopAnim = null; }
+  const stage = STAGES.filter((s) => s <= level).pop() || 1;
+  const cv = $('hero-cv'), ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  let sheet, still;
+  try { [still, sheet] = await Promise.all([RealArt.sheet(race, element, stage, 'still'), RealArt.sheet(race, element, stage, 'full')]); } catch (e) { return; }
+  const C = sheet.cell, sc = still.canvas.getContext('2d').getImageData(0, 0, C, C).data;
+  let x0 = C, x1 = 0, y0 = C, y1 = 0;
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) if (sc[(y * C + x) * 4 + 3] > 60) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, S = Math.min(C, Math.max(x1 - x0, y1 - y0) + 24);
+  const sx = Math.max(0, Math.min(C - S, Math.round(cx - S / 2))), sy = Math.max(0, Math.min(C - S, Math.round(cy - S / 2)));
+  cv.width = S; cv.height = S;
+  const A = RealArt.ANIMS.idle; let last = -1;
+  stopAnim = RealArt.tick((t) => {
+    const f = Math.floor(t / 160) % A[1]; if (f === last) return; last = f;
+    ctx.clearRect(0, 0, S, S); ctx.drawImage(sheet.canvas, (A[0] + f) * C + sx, sy, S, S, 0, 0, S, S);
+  });
+}
+
+// ---------- render ----------
+function render(d) {
+  const race = QC.raceById[d.race], el = QC.elemById[d.element];
+  const lv = Math.max(1, Math.min(99, d.level | 0));
+  $('h-nick').textContent = d.nick || 'นักผจญภัย';
+  $('h-title').textContent = race && el ? QC.titleOf(d.race, d.element, lv, 'th') : '';
+  $('h-race').textContent = race ? race.th : '-';
+  $('h-elem').textContent = el ? 'ธาตุ' + el.th : '-';
+  $('h-lv').textContent = lv;
+  const exp = d.exp | 0;
+  if (lv >= 99) { $('h-bar').style.width = '100%'; $('h-exp').textContent = 'EXP สะสม ' + exp.toLocaleString('th-TH') + ' (สูงสุดแล้ว เก็บต่อได้ไม่จำกัด)'; }
+  else {
+    const a = d.curAt | 0, b = d.nextAt | 0; const pct = b > a ? Math.max(0, Math.min(100, ((exp - a) / (b - a)) * 100)) : 0;
+    $('h-bar').style.width = pct.toFixed(1) + '%'; $('h-exp').textContent = 'EXP ' + exp.toLocaleString('th-TH') + ' / ' + b + '  (อีก ' + Math.max(0, b - exp) + ' ขึ้นเลเวลต่อไป)';
+  }
+  $('stage').style.setProperty('--glow', el ? el.glow + 'aa' : '#ffffff55');
+  $('hero-cv').style.filter = lv >= 50 && el ? 'drop-shadow(0 0 12px ' + el.glow + '88)' : 'none';
+  drawHero(d.race, d.element, lv);
+
+  const today = bkkToday(), tasks = (d.tasks || []).slice().sort((a, b) => String(a.d).localeCompare(String(b.d)));
+  $('task-count').textContent = tasks.length ? tasks.length + ' งาน' : 'ไม่มีค้าง';
+  $('task-count').className = 'tag ' + (tasks.some((t) => t.d && t.d < today) ? 'late' : tasks.length ? 'soon' : 'ok');
+  const ul = $('task-list'); ul.textContent = '';
+  if (!tasks.length) { const li = document.createElement('li'); li.textContent = 'ส่งงานครบแล้ว เก่งมาก!'; ul.append(li); }
+  for (const t of tasks) {
+    const li = document.createElement('li'), s = document.createElement('span'), g = document.createElement('span');
+    s.className = 't'; s.textContent = t.t; g.className = 'tag';
+    if (t.d) { const n = daysBetween(today, t.d); if (n < 0) { g.classList.add('late'); g.textContent = 'เลยกำหนด ' + (-n) + ' วัน'; } else { g.classList.add(n <= 3 ? 'soon' : 'ok'); g.textContent = n === 0 ? 'ส่งวันนี้' : 'อีก ' + n + ' วัน · ' + thDate(t.d); } }
+    li.append(s, g); ul.append(li);
+  }
+
+  const a = d.att || {}; const sum = $('att-sum'); sum.textContent = '';
+  for (const [k, lab] of [['present', 'มา'], ['late', 'สาย'], ['absent', 'ขาด'], ['total', 'ทั้งหมด']]) { const dv = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'); b.className = 'num'; b.textContent = a[k] | 0; sp.textContent = lab; dv.append(b, sp); sum.append(dv); }
+  const dots = $('att-dots'); dots.textContent = '';
+  for (const r of (a.last || []).slice(-30)) { const i = document.createElement('i'); i.className = 'dot ' + r[1]; i.title = (r[0] ? thDate(r[0]) + ' ' : '') + ({ P: 'มา', L: 'สาย', A: 'ขาด' }[r[1]] || ''); dots.append(i); }
+
+  const wk = d.wk || {}; $('wk-line').textContent = wk.cap ? 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: ' + (wk.used | 0) + ' / ' + wk.cap : 'EXP จากดันเจี้ยนที่บ้านสัปดาห์นี้: -';
+  const u = d.updatedAt && d.updatedAt.toMillis ? d.updatedAt.toMillis() : d.updatedAt;
+  $('updated').textContent = u ? 'ข้อมูลอัปเดตโดยครูเมื่อ ' + new Date(u).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+}
+
+// ---------- flow ----------
+async function enter(code, silent) {
+  const err = $('login-err'); err.textContent = ''; $('login-btn').disabled = true;
+  try {
+    const d = await fetchHome(code);
+    if (!d) { err.textContent = 'ไม่พบรหัสนี้ ตรวจตัวอักษรอีกครั้ง หรือถามครู'; if (silent) save('qc.home.code', null); show('login'); return; }
+    cur = code; save('qc.home.code', code === 'DEMO' ? null : code); render(d); show('home'); window.scrollTo(0, 0);
+  } catch (e) {
+    console.error(e);
+    if (silent && cur) return;
+    err.textContent = 'เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่'; show('login');
+  } finally { $('login-btn').disabled = false; }
+}
+$('code').addEventListener('input', (e) => {
+  const c = normCode(e.target.value).slice(0, 8); e.target.value = c.length > 4 ? c.slice(0, 4) + '-' + c.slice(4) : c;
+});
+$('login-form').addEventListener('submit', (e) => {
+  e.preventDefault(); const c = normCode($('code').value);
+  if (!validCode(c)) { $('login-err').textContent = 'รหัสต้องมี 8 ตัว (ตัวอักษร A–Z ยกเว้น I L O และเลข 2–9)'; return; }
+  enter(c);
+});
+$('logout').addEventListener('click', () => { save('qc.home.code', null); cur = null; if (stopAnim) { stopAnim(); stopAnim = null; } $('code').value = ''; show('login'); });
+$('refresh').addEventListener('click', () => { if (cur) enter(cur, true); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && cur && cur !== 'DEMO') enter(cur, true); });
+
+(function boot() {
+  if (location.hash === '#demo') { enter('DEMO'); return; }
+  const c = load('qc.home.code'); if (c && validCode(c)) enter(c, true); else show('login');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Only the teacher's verified Google account has full access.
+    function isTeacher() {
+      return request.auth != null
+        && request.auth.token.email == 'apiwatpawong@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // Personal code = 8 characters from 23456789ABCDEFGHJKMNPQRSTUVWXYZ (no 0/1/I/L/O).
+    function validCode(code) {
+      return code.matches('[2-9A-HJKMNP-Z]{8}');
+    }
+
+    match /homes/{code} {
+      // A student can read ONE document if they know its code. Listing is never allowed.
+      allow get: if validCode(code) || isTeacher();
+      allow list, write: if isTeacher();
+
+      // A dungeon round submitted from home: create-only, exact shape, no edits, no reads.
+      match /runs/{runId} {
+        allow read, update, delete: if isTeacher();
+        allow create: if isTeacher() || (
+          validCode(code)
+          && exists(/databases/$(database)/documents/homes/$(code))
+          && runId.matches('[a-z_]{3,32}-[0-9]{1,3}')
+          && request.resource.data.keys().hasOnly(['monster', 'attempt', 'seed', 'answers', 'ms', 'claimPass', 'at'])
+          && request.resource.data.keys().hasAll(['monster', 'attempt', 'seed', 'answers', 'ms', 'at'])
+          && request.resource.data.monster is string && request.resource.data.monster.size() <= 40
+          && request.resource.data.attempt is int && request.resource.data.attempt >= 1 && request.resource.data.attempt <= 999
+          && request.resource.data.seed is int
+          && request.resource.data.answers is list && request.resource.data.answers.size() == 10
+          && request.resource.data.ms is list && request.resource.data.ms.size() == 10
+          && request.resource.data.at == request.time
+        );
+      }
+    }
+  }
+}
