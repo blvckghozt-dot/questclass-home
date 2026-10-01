@@ -9,7 +9,7 @@ var RealArt = (function () {
   var MANIFEST = {};
   ['human', 'dwarf', 'machina', 'demon', 'high_elf', 'beastkin', 'celestial', 'fairy'].forEach(function (r) { MANIFEST[r] = { cell: 192, stages: [1, 10, 20, 35, 50, 65, 80, 99] }; });
   // recolour base per element (earth uses a lighter brown so the ramp reads on a scarf)
-  var ELEM_BASE = { earth: '#8a5a3c', water: '#94e7f5', wind: '#48d58b', fire: '#ef4f3f', ice: '#2c46c8', lightning: '#ffb61c', light: '#fff9dc', dark: '#120b1a' };
+  var ELEM_BASE = { earth: '#8a5a3c', water: '#94e7f5', wind: '#48d58b', fire: '#ef4f3f', ice: '#2c46c8', lightning: '#ffb61c', light: '#fffdf6', dark: '#120b1a' };
   var raw = {}, masks = {}, sheets = {}, portraits = {}, listeners = [];
 
   function has(race, stage) { var m = MANIFEST[race]; return !!(m && m.stages.indexOf(stage) >= 0); }
@@ -112,7 +112,7 @@ var RealArt = (function () {
         if ((human || elf) && yy < hy + 46 && Math.abs(xx - hx) < 28) continue; // skin and hair
         if (mode.indexOf('beast') === 0) { // beastkin: white parts (ear insides, tail tips, hair tie; whole Lv99 outfit) + red trims/armour (Lv50–80); orange fur/hair and the rest stay original
           var bw99 = mode === 'beast-99';
-          if (l >= 0.82 || (bw99 && ((l >= 0.55 && s <= 0.3) || (h >= 36 && h <= 64 && l >= 0.6 && s >= 0.45) || (h >= 165 && h <= 220 && s >= 0.3 && l >= 0.3)))) m[i] = 1; // Lv99 also: yellow-cream tail tips and the icy-blue gauntlets // cream-white has a high HLS saturation, so lightness alone decides
+          if (l >= 0.78 || (l >= 0.6 && s <= 0.3) || (h >= 36 && h <= 64 && l >= 0.6 && s >= 0.45) || (bw99 && h >= 165 && h <= 220 && s >= 0.3 && l >= 0.3)) m[i] = 1; // every white / pale-cream part (tail tips, inner ears, shirt) takes a soft element tone // Lv99 also: yellow-cream tail tips and the icy-blue gauntlets // cream-white has a high HLS saturation, so lightness alone decides
           else if (mode !== 'beast-w' && !bw99 && (h >= 348 || h <= 7) && s >= 0.55 && l >= 0.15 && l <= 0.8 && yy > top + (bot - top) * 0.3) m[i] = 1;
           continue; }
         if (mode === 'celestial-gold') { if (((h >= 35 && h <= 66 && s >= 0.35) || (h >= 22 && h < 35 && s >= 0.68 && l <= 0.55) || ((h >= 348 || h <= 7) && s >= 0.55)) && l >= 0.2 && l <= 0.93) m[i] = 1; continue; } // Lv50+: blonde hair and every yellow/gold part (weapon, trim, armour, halo); wings and white robes keep their colour
@@ -165,8 +165,9 @@ var RealArt = (function () {
     for (var i = 0; i < m.length; i++) {
       if (!m[i]) continue;
       var o = i * 4, q = hls(d[o], d[o + 1], d[o + 2]);
-      var w = lw === 'auto' ? (q[1] > 0.6 ? 0.55 : 0.12) : lw; // 'auto': pale (white) pixels take the element lightness more strongly so they read as coloured
-      var nl = Math.min(0.92, Math.max(0.06, q[1] * (w > 0.12 ? 1 - w : 0.9) + bl * w)), ns = bl < 0.15 ? 0.08 : Math.min(1, Math.max(q[2] * 0.85, bs * 0.9, 0.35));
+      var w = lw === 'auto' ? (q[1] > 0.6 ? 0.55 : 0.12) : lw;
+      if (bl > 0.9) w = Math.max(w, 0.5); // light element: lift gold / yellow parts toward near-white // 'auto': pale (white) pixels take the element lightness more strongly so they read as coloured
+      var nl = Math.min(0.92, Math.max(0.06, q[1] * (w > 0.12 ? 1 - w : 0.9) + bl * w)), ns = bl < 0.15 ? 0.08 : bl > 0.9 ? 0.12 : Math.min(1, Math.max(q[2] * 0.85, bs * 0.9, 0.35));
       var c = hsl2rgb(bh, ns, nl);
       for (var ch = 0; ch < 3; ch++) d[o + ch] = c[ch] * k + d[o + ch] * (1 - k);
     }
